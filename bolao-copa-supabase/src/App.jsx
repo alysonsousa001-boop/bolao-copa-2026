@@ -763,23 +763,37 @@ function Shell({ children }) {
         input::placeholder { color: #5B5F94; }
         select { -webkit-appearance: none; appearance: none; }
         body { margin: 0; }
-        .bg-watermark {
+        .bg-watermark-wrap {
           position: fixed;
           top: 50%;
           left: 50%;
           transform: translate(-50%, -50%);
           width: min(78vw, 640px);
           max-width: 92vw;
-          opacity: 0.06;
           pointer-events: none;
           user-select: none;
           z-index: 0;
         }
         @media (min-width: 900px) {
-          .bg-watermark { width: min(46vw, 640px); }
+          .bg-watermark-wrap { width: min(46vw, 640px); }
+        }
+        .bg-glow {
+          position: absolute;
+          inset: -18%;
+          background: radial-gradient(circle at center, rgba(244,241,234,0.09) 0%, rgba(244,241,234,0.04) 40%, rgba(244,241,234,0) 72%);
+          filter: blur(6px);
+        }
+        .bg-watermark {
+          position: relative;
+          width: 100%;
+          display: block;
+          opacity: 0.16;
         }
       `}</style>
-      <img src="/logo-network.png" alt="" className="bg-watermark" />
+      <div className="bg-watermark-wrap">
+        <div className="bg-glow" />
+        <img src="/logo-network.png" alt="" className="bg-watermark" />
+      </div>
       <div style={{ maxWidth: 760, margin: "0 auto", position: "relative", zIndex: 1 }}>{children}</div>
     </div>
   );
