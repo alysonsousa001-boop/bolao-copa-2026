@@ -750,7 +750,7 @@ export default function App() {
 
 function Shell({ children }) {
   return (
-    <div style={{ background: "#0B0E2A", minHeight: "100vh", fontFamily: "var(--font-body)", position: "relative" }}>
+    <div style={{ background: "#0B0E2A", minHeight: "100vh", fontFamily: "var(--font-body)", position: "relative", overflow: "hidden" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Anton&family=Work+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap');
         :root {
@@ -763,8 +763,24 @@ function Shell({ children }) {
         input::placeholder { color: #5B5F94; }
         select { -webkit-appearance: none; appearance: none; }
         body { margin: 0; }
+        .bg-watermark {
+          position: fixed;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          width: min(78vw, 640px);
+          max-width: 92vw;
+          opacity: 0.06;
+          pointer-events: none;
+          user-select: none;
+          z-index: 0;
+        }
+        @media (min-width: 900px) {
+          .bg-watermark { width: min(46vw, 640px); }
+        }
       `}</style>
-      <div style={{ maxWidth: 760, margin: "0 auto" }}>{children}</div>
+      <img src="/logo-network.png" alt="" className="bg-watermark" />
+      <div style={{ maxWidth: 760, margin: "0 auto", position: "relative", zIndex: 1 }}>{children}</div>
     </div>
   );
 }
