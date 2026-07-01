@@ -313,7 +313,7 @@ export default function App() {
       <Shell>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: 360, gap: 18, padding: "0 24px", textAlign: "center" }}>
           <Trophy size={40} color="#F5B642" />
-          <div style={{ fontFamily: "var(--font-display)", fontSize: 28, letterSpacing: 0.5, color: "#F4F1EA" }}>BOLÃO DA COPA 2026</div>
+          <div style={{ fontFamily: "var(--font-display)", fontSize: 28, letterSpacing: 0.5, color: "#F4F1EA" }}>BOLÃO NETWORK</div>
           <div style={{ fontFamily: "var(--font-body)", color: "#8C90B8", fontSize: 14, maxWidth: 320 }}>
             Digite seu nome para entrar no grupo e começar a dar seus palpites.
           </div>
@@ -339,7 +339,7 @@ export default function App() {
           <Trophy size={24} color="#F5B642" />
           <div>
             <div style={{ fontFamily: "var(--font-display)", fontSize: 22, letterSpacing: 0.5, color: "#F4F1EA", lineHeight: 1 }}>
-              BOLÃO DA COPA 2026
+              BOLÃO NETWORK
             </div>
             <div style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "#8C90B8" }}>
               Jogando como <strong style={{ color: "#F5B642" }}>{name}</strong>
