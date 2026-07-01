@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import { Trophy, Plus, Lock, Unlock, Medal, Calendar, Settings2, Trash2, Check, Users, ChevronRight, Loader2 } from "lucide-react";
+import { Trophy, Plus, Lock, Unlock, Medal, Calendar, Settings2, Trash2, Check, Users, ChevronRight, Loader2, Eye } from "lucide-react";
 import { supabase } from "./supabaseClient";
 
 const ADMIN_PASS = import.meta.env.VITE_ADMIN_PASS || "network2026";
@@ -53,6 +53,9 @@ export default function App() {
   const [newMatch, setNewMatch] = useState({ phase: "Oitavas de Final", team1: "", team2: "", date: "", time: "" });
   const [confirmReset, setConfirmReset] = useState(false);
   const [connError, setConnError] = useState("");
+  const [expandedMatches, setExpandedMatches] = useState({});
+
+  const toggleExpanded = (id) => setExpandedMatches((e) => ({ ...e, [id]: !e[id] }));
 
   const myPredictions = allPredictions[name] || {};
 
@@ -456,8 +459,13 @@ export default function App() {
                       const locked = !!res;
                       const pts = locked && myPredictions[m.id] ? calcPoints(myPredictions[m.id], res) : null;
                       const status = saveStatus[m.id];
+                      const allPredsForMatch = participants
+                        .map((p) => ({ name: p, pred: (allPredictions[p] || {})[m.id] }))
+                        .filter((x) => x.pred);
+                      const isExpanded = !!expandedMatches[m.id];
                       return (
-                        <div key={m.id} style={ticketStyle}>
+                        <div key={m.id}>
+                        <div style={ticketStyle}>
                           <div style={{ flex: 1, padding: "14px 16px", display: "flex", flexDirection: "column", justifyContent: "center", gap: 4 }}>
                             <div style={{ fontFamily: "var(--font-display)", fontSize: 16, color: "#F4F1EA", letterSpacing: 0.3 }}>
                               {m.team1} <span style={{ color: "#5B5F94" }}>vs</span> {m.team2}
@@ -540,6 +548,44 @@ export default function App() {
                               </button>
                             )}
                           </div>
+                        </div>
+
+                        <button
+                          onClick={() => toggleExpanded(m.id)}
+                          style={{
+                            ...tinyBtn,
+                            marginTop: 6,
+                            justifyContent: "center",
+                            width: "100%",
+                            borderStyle: "dashed",
+                          }}
+                        >
+                          <Eye size={12} />
+                          {isExpanded ? "Esconder palpites" : `Ver palpites de todos (${allPredsForMatch.length})`}
+                        </button>
+
+                        {isExpanded && (
+                          <div style={{ ...cardStyle, marginTop: 6, padding: "10px 14px" }}>
+                            {allPredsForMatch.length === 0 ? (
+                              <div style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "#8C90B8" }}>
+                                Ninguém deu palpite nesse jogo ainda.
+                              </div>
+                            ) : (
+                              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                                {allPredsForMatch.map(({ name: pname, pred: pp }) => (
+                                  <div key={pname} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                    <span style={{ fontFamily: "var(--font-body)", fontSize: 13, color: pname === name ? "#F5B642" : "#C7CAE8" }}>
+                                      {pname}
+                                    </span>
+                                    <span style={{ fontFamily: "var(--font-mono)", fontSize: 14, fontWeight: 700, color: "#F4F1EA" }}>
+                                      {pp.s1} x {pp.s2}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
                         </div>
                       );
                     })}
