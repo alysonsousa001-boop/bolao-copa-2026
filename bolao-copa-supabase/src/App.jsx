@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import { Trophy, Plus, Lock, Unlock, Medal, Calendar, Settings2, Trash2, Check, Users, ChevronRight, Loader2, Eye } from "lucide-react";
+import { Trophy, Plus, Lock, Unlock, Medal, Calendar, Settings2, Trash2, Check, Users, ChevronRight, Loader2, Eye, Repeat } from "lucide-react";
 import { supabase } from "./supabaseClient";
 
 const ADMIN_PASS = import.meta.env.VITE_ADMIN_PASS || "network2026";
 const STORAGE_NAME_KEY = "bolao-copa-2026:name";
+const STORAGE_NAMES_KEY = "bolao-copa-2026:knownNames";
 
 const PHASES = [
   "Fase de Grupos",
@@ -54,8 +55,24 @@ export default function App() {
   const [confirmReset, setConfirmReset] = useState(false);
   const [connError, setConnError] = useState("");
   const [expandedMatches, setExpandedMatches] = useState({});
+  const [knownNames, setKnownNames] = useState([]);
+  const [switchOpen, setSwitchOpen] = useState(false);
+  const [switchInput, setSwitchInput] = useState("");
 
   const toggleExpanded = (id) => setExpandedMatches((e) => ({ ...e, [id]: !e[id] }));
+
+  const persistKnownNames = (list) => {
+    setKnownNames(list);
+    localStorage.setItem(STORAGE_NAMES_KEY, JSON.stringify(list));
+  };
+  const rememberName = (n) => {
+    setKnownNames((prev) => {
+      if (prev.includes(n)) return prev;
+      const next = [...prev, n];
+      localStorage.setItem(STORAGE_NAMES_KEY, JSON.stringify(next));
+      return next;
+    });
+  };
 
   const myPredictions = allPredictions[name] || {};
 
@@ -94,6 +111,12 @@ export default function App() {
       setLoading(true);
       const saved = localStorage.getItem(STORAGE_NAME_KEY);
       if (saved) setName(saved);
+      try {
+        const savedNames = JSON.parse(localStorage.getItem(STORAGE_NAMES_KEY) || "[]");
+        setKnownNames(savedNames);
+      } catch (e) {
+        setKnownNames([]);
+      }
       await refreshAll();
       setLoading(false);
     })();
@@ -127,6 +150,19 @@ export default function App() {
     if (!n) return;
     localStorage.setItem(STORAGE_NAME_KEY, n);
     setName(n);
+    rememberName(n);
+    await supabase.from("participants").upsert({ name: n });
+    refreshAll();
+  };
+
+  const switchToName = async (n) => {
+    n = n.trim();
+    if (!n) return;
+    localStorage.setItem(STORAGE_NAME_KEY, n);
+    setName(n);
+    rememberName(n);
+    setSwitchOpen(false);
+    setSwitchInput("");
     await supabase.from("participants").upsert({ name: n });
     refreshAll();
   };
@@ -307,6 +343,13 @@ export default function App() {
             </div>
             <div style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "#8C90B8" }}>
               Jogando como <strong style={{ color: "#F5B642" }}>{name}</strong>
+              {" · "}
+              <span
+                onClick={() => setSwitchOpen(true)}
+                style={{ color: "#8C90B8", textDecoration: "underline", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 3 }}
+              >
+                <Repeat size={11} /> trocar de cartão
+              </span>
             </div>
           </div>
         </div>
@@ -353,6 +396,54 @@ export default function App() {
               </button>
               <button onClick={tryAdminLogin} style={primaryBtn}>
                 Entrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {switchOpen && (
+        <div style={overlayStyle}>
+          <div style={modalStyle}>
+            <div style={{ fontFamily: "var(--font-display)", fontSize: 18, color: "#F4F1EA", marginBottom: 10 }}>TROCAR DE CARTÃO</div>
+            <div style={{ fontFamily: "var(--font-body)", fontSize: 13, color: "#8C90B8", marginBottom: 14 }}>
+              Cada cartão é um jogo independente no bolão, com pontuação separada.
+            </div>
+
+            {knownNames.length > 0 && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 14 }}>
+                {knownNames.map((n) => (
+                  <button
+                    key={n}
+                    onClick={() => switchToName(n)}
+                    style={{
+                      ...ghostBtn,
+                      justifyContent: "space-between",
+                      width: "100%",
+                      borderColor: n === name ? "#F5B642" : "#3A3F6E",
+                      color: n === name ? "#F5B642" : "#C7CAE8",
+                    }}
+                  >
+                    {n} {n === name && "· ativo"}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <div style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "#8C90B8", marginBottom: 6 }}>Criar novo cartão:</div>
+            <input
+              value={switchInput}
+              onChange={(e) => setSwitchInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && switchToName(switchInput)}
+              placeholder="Ex: Alysson - Cartão 2"
+              style={inputStyle({ width: "100%", marginBottom: 8 })}
+            />
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <button onClick={() => { setSwitchOpen(false); setSwitchInput(""); }} style={ghostBtn}>
+                Cancelar
+              </button>
+              <button onClick={() => switchToName(switchInput)} style={primaryBtn}>
+                <Plus size={14} /> Criar e usar
               </button>
             </div>
           </div>
