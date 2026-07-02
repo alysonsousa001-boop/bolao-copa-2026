@@ -1,10 +1,15 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import { Trophy, Plus, Lock, Unlock, Medal, Calendar, Settings2, Trash2, Check, Users, ChevronRight, Loader2, Eye, Repeat } from "lucide-react";
+import { Trophy, Plus, Lock, Unlock, Medal, Calendar, Settings2, Trash2, Check, Users, ChevronRight, Loader2, Eye, Repeat, Wallet, CircleCheck, CircleDollarSign } from "lucide-react";
 import { supabase } from "./supabaseClient";
 
 const ADMIN_PASS = import.meta.env.VITE_ADMIN_PASS || "network2026";
+const ENTRY_FEE = Number(import.meta.env.VITE_ENTRY_FEE || 20);
 const STORAGE_NAME_KEY = "bolao-copa-2026:name";
 const STORAGE_NAMES_KEY = "bolao-copa-2026:knownNames";
+
+function formatBRL(n) {
+  return "R$ " + n.toFixed(2).replace(".", ",");
+}
 
 const PHASES = [
   "Fase de Grupos",
@@ -42,6 +47,7 @@ export default function App() {
   const [matches, setMatches] = useState([]);
   const [results, setResults] = useState({});
   const [participants, setParticipants] = useState([]);
+  const [participantsPaid, setParticipantsPaid] = useState({});
   const [allPredictions, setAllPredictions] = useState({}); // participant -> {matchId: {s1,s2}}
   const [tab, setTab] = useState("jogos");
   const [predDrafts, setPredDrafts] = useState({});
@@ -88,7 +94,7 @@ export default function App() {
       const [m, r, p, pr] = await Promise.all([
         supabase.from("matches").select("*"),
         supabase.from("results").select("*"),
-        supabase.from("participants").select("name"),
+        supabase.from("participants").select("name, paid"),
         supabase.from("predictions").select("*"),
       ]);
       if (m.error || r.error || p.error || pr.error) {
@@ -101,6 +107,9 @@ export default function App() {
       (r.data || []).forEach((row) => (resMap[row.match_id] = { s1: row.s1, s2: row.s2 }));
       setResults(resMap);
       setParticipants((p.data || []).map((x) => x.name));
+      const paidMap = {};
+      (p.data || []).forEach((x) => (paidMap[x.name] = !!x.paid));
+      setParticipantsPaid(paidMap);
       const predMap = {};
       (pr.data || []).forEach((row) => {
         if (!predMap[row.participant]) predMap[row.participant] = {};
@@ -293,6 +302,11 @@ export default function App() {
     refreshAll();
   };
 
+  const togglePaid = async (pname) => {
+    await supabase.from("participants").update({ paid: !participantsPaid[pname] }).eq("name", pname);
+    refreshAll();
+  };
+
   const resetAll = async () => {
     await supabase.from("predictions").delete().neq("participant", "__none__");
     await supabase.from("results").delete().neq("match_id", "00000000-0000-0000-0000-000000000000");
@@ -479,6 +493,7 @@ export default function App() {
         {[
           ["jogos", "Jogos & Palpites"],
           ["classificacao", "Classificação"],
+          ["pagamentos", "Pagamentos"],
         ].map(([id, label]) => (
           <button
             key={id}
@@ -782,6 +797,95 @@ export default function App() {
                 ))}
               </div>
             )}
+          </div>
+        )}
+
+        {tab === "pagamentos" && (
+          <div>
+            {(() => {
+              const paidCount = participants.filter((p) => participantsPaid[p]).length;
+              const total = participants.length;
+              const arrecadado = paidCount * ENTRY_FEE;
+              const esperado = total * ENTRY_FEE;
+              return (
+                <>
+                  <div style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap" }}>
+                    <div style={{ ...cardStyle, padding: "12px 16px", flex: 1, minWidth: 140 }}>
+                      <div style={{ fontFamily: "var(--font-body)", fontSize: 11, color: "#8C90B8" }}>Valor por pessoa</div>
+                      <div style={{ fontFamily: "var(--font-mono)", fontSize: 20, fontWeight: 700, color: "#F4F1EA" }}>{formatBRL(ENTRY_FEE)}</div>
+                    </div>
+                    <div style={{ ...cardStyle, padding: "12px 16px", flex: 1, minWidth: 140 }}>
+                      <div style={{ fontFamily: "var(--font-body)", fontSize: 11, color: "#8C90B8" }}>Pagaram</div>
+                      <div style={{ fontFamily: "var(--font-mono)", fontSize: 20, fontWeight: 700, color: "#3FA796" }}>
+                        {paidCount} / {total}
+                      </div>
+                    </div>
+                    <div style={{ ...cardStyle, padding: "12px 16px", flex: 1, minWidth: 140 }}>
+                      <div style={{ fontFamily: "var(--font-body)", fontSize: 11, color: "#8C90B8" }}>Arrecadado</div>
+                      <div style={{ fontFamily: "var(--font-mono)", fontSize: 20, fontWeight: 700, color: "#F5B642" }}>
+                        {formatBRL(arrecadado)} <span style={{ fontSize: 12, color: "#8C90B8", fontWeight: 400 }}>de {formatBRL(esperado)}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {participants.length === 0 ? (
+                    <div style={{ ...cardStyle, padding: 28, textAlign: "center", color: "#8C90B8", fontFamily: "var(--font-body)" }}>
+                      Ninguém entrou no bolão ainda.
+                    </div>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      {participants.map((p) => {
+                        const paid = !!participantsPaid[p];
+                        return (
+                          <div
+                            key={p}
+                            style={{
+                              ...cardStyle,
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 12,
+                              padding: "12px 16px",
+                              border: p === name ? "1px solid #F5B642" : "1px solid #23274F",
+                            }}
+                          >
+                            <Wallet size={16} color={paid ? "#3FA796" : "#5B5F94"} />
+                            <div style={{ flex: 1, fontFamily: "var(--font-display)", fontSize: 15, color: "#F4F1EA" }}>{p}</div>
+                            <div style={{ fontFamily: "var(--font-mono)", fontSize: 13, color: "#8C90B8" }}>{formatBRL(ENTRY_FEE)}</div>
+                            {adminMode ? (
+                              <button
+                                onClick={() => togglePaid(p)}
+                                style={{
+                                  ...tinyBtn,
+                                  color: paid ? "#3FA796" : "#D88A3F",
+                                  borderColor: paid ? "#2f5d52" : "#5b4a2a",
+                                }}
+                              >
+                                {paid ? <CircleCheck size={13} /> : <CircleDollarSign size={13} />}
+                                {paid ? "Pago" : "Marcar como pago"}
+                              </button>
+                            ) : (
+                              <span
+                                style={{
+                                  fontFamily: "var(--font-body)",
+                                  fontSize: 11,
+                                  fontWeight: 700,
+                                  padding: "4px 10px",
+                                  borderRadius: 20,
+                                  color: paid ? "#3FA796" : "#D88A3F",
+                                  background: paid ? "rgba(63,167,150,0.12)" : "rgba(216,138,63,0.12)",
+                                }}
+                              >
+                                {paid ? "PAGO" : "PENDENTE"}
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </>
+              );
+            })()}
           </div>
         )}
       </div>
