@@ -54,6 +54,12 @@ export default function App() {
   const [newMatch, setNewMatch] = useState({ phase: "Oitavas de Final", team1: "", team2: "", date: "", time: "" });
   const [confirmReset, setConfirmReset] = useState(false);
   const [connError, setConnError] = useState("");
+  const [nowTick, setNowTick] = useState(Date.now());
+
+  useEffect(() => {
+    const t = setInterval(() => setNowTick(Date.now()), 20000);
+    return () => clearInterval(t);
+  }, []);
   const [expandedMatches, setExpandedMatches] = useState({});
   const [knownNames, setKnownNames] = useState([]);
   const [switchOpen, setSwitchOpen] = useState(false);
@@ -265,6 +271,25 @@ export default function App() {
   };
   const clearResult = async (id) => {
     await supabase.from("results").delete().eq("match_id", id);
+    refreshAll();
+  };
+
+  const isKickoffPassed = (m) => {
+    if (!m.date) return false;
+    const kickoff = new Date(`${m.date}T${m.time || "00:00"}`);
+    if (isNaN(kickoff.getTime())) return false;
+    return nowTick >= kickoff.getTime();
+  };
+
+  const lockInfo = (m) => {
+    if (results[m.id]) return { locked: true, reason: "result" };
+    if (m.locked) return { locked: true, reason: "manual" };
+    if (isKickoffPassed(m)) return { locked: true, reason: "kickoff" };
+    return { locked: false, reason: null };
+  };
+
+  const toggleManualLock = async (m) => {
+    await supabase.from("matches").update({ locked: !m.locked }).eq("id", m.id);
     refreshAll();
   };
 
@@ -547,8 +572,9 @@ export default function App() {
                     {groupedMatches[phase].map((m) => {
                       const res = results[m.id];
                       const pred = draftFor(m.id);
-                      const locked = !!res;
-                      const pts = locked && myPredictions[m.id] ? calcPoints(myPredictions[m.id], res) : null;
+                      const lock = lockInfo(m);
+                      const locked = lock.locked;
+                      const pts = locked && res && myPredictions[m.id] ? calcPoints(myPredictions[m.id], res) : null;
                       const status = saveStatus[m.id];
                       const allPredsForMatch = participants
                         .map((p) => ({ name: p, pred: (allPredictions[p] || {})[m.id] }))
@@ -567,15 +593,23 @@ export default function App() {
                                   <Calendar size={12} /> {m.date} {m.time}
                                 </span>
                               )}
-                              {locked ? (
+                              {res ? (
                                 <span style={{ color: "#3FA796", fontWeight: 600 }}>
                                   Resultado: {res.s1} x {res.s2}
+                                </span>
+                              ) : lock.reason === "manual" ? (
+                                <span style={{ color: "#D88A3F", fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}>
+                                  <Lock size={11} /> Palpites travados pelo organizador
+                                </span>
+                              ) : lock.reason === "kickoff" ? (
+                                <span style={{ color: "#D88A3F", fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}>
+                                  <Lock size={11} /> Palpites travados (jogo já começou)
                                 </span>
                               ) : (
                                 <span>Aguardando jogo</span>
                               )}
                             </div>
-                            {locked && pts !== null && (
+                            {res && pts !== null && (
                               <div
                                 style={{
                                   fontFamily: "var(--font-mono)",
@@ -608,6 +642,13 @@ export default function App() {
                                     Limpar
                                   </button>
                                 )}
+                                <button
+                                  onClick={() => toggleManualLock(m)}
+                                  style={{ ...tinyBtn, color: m.locked ? "#3FA796" : "#D88A3F" }}
+                                >
+                                  {m.locked ? <Unlock size={12} /> : <Lock size={12} />}
+                                  {m.locked ? "Destravar palpites" : "Travar palpites agora"}
+                                </button>
                                 <button onClick={() => deleteMatch(m.id)} style={{ ...tinyBtn, marginLeft: "auto", color: "#E2483D" }}>
                                   <Trash2 size={12} />
                                 </button>
@@ -787,7 +828,7 @@ function Shell({ children }) {
           position: relative;
           width: 100%;
           display: block;
-          opacity: 0.16;
+          opacity: 0.92;
         }
       `}</style>
       <div className="bg-watermark-wrap">
